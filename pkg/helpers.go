@@ -174,7 +174,7 @@ func FileExists(path string) (bool, error) {
 }
 
 func checkIfHelm2(t *testing.T) (bool, error) {
-	// `--client` was removed in helm v4
+	// `--client` was removed in helm 4
 	// `helm version --short` works for helm 3 and 4
 	cmd := exec.Command("helm", "version", "--short")
 	data, err := cmd.CombinedOutput()
