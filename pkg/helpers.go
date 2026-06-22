@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,7 +87,7 @@ func writeBufferToFile(t *testing.T, data []byte, resultDir string) (string, err
 
 	fileName := filepath.Join(outDir, name+".yaml")
 
-	err = ioutil.WriteFile(fileName, data, DefaultFileWritePermissions)
+	err = os.WriteFile(fileName, data, DefaultFileWritePermissions)
 	require.NoError(t, err, "creating file %q", fileName)
 	return fileName, err
 }
@@ -175,8 +174,15 @@ func FileExists(path string) (bool, error) {
 }
 
 func checkIfHelm2(t *testing.T) (bool, error) {
-	cmd := exec.Command("helm", "version", "-c", "--short")
+	// `--client` was removed in helm v4
+	// `helm version --short` works for helm 3 and 4
+	cmd := exec.Command("helm", "version", "--short")
 	data, err := cmd.CombinedOutput()
+	if err != nil {
+		// fallback to old check for helm 2
+		cmd = exec.Command("helm", "version", "--client", "--short")
+		data, err = cmd.CombinedOutput()
+	}
 	if data != nil {
 		t.Logf("helm version: %s\n", string(data))
 	}

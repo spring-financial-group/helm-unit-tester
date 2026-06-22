@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"io/ioutil"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,19 +16,33 @@ import (
 // showing a nice diff if they differ
 func AssertTextFileContentEqual(t *testing.T, expectedFile, actualFile, testName string) {
 	if assert.FileExists(t, expectedFile, testName) && assert.FileExists(t, actualFile, testName) {
-		expectedData, err := ioutil.ReadFile(expectedFile)
+		expectedData, err := os.ReadFile(expectedFile)
 		require.NoError(t, err, "failed to load file %s", expectedFile)
 
-		actualData, err := ioutil.ReadFile(actualFile)
+		actualData, err := os.ReadFile(actualFile)
 		require.NoError(t, err, "failed to load file %s", actualFile)
 
-		diff := cmp.Diff(string(actualData), string(expectedData))
+		diff := cmp.Diff(normalizeYAML(string(actualData)), normalizeYAML(string(expectedData)))
 		if diff != "" {
 			t.Logf("generated: %s does not match expected: %s", actualFile, expectedFile)
 			t.Logf("%s\n", diff)
 			assert.Fail(t, "file %s is not the same as file %s", actualFile, expectedFile)
 		}
 	}
+}
+
+// normalizeYAML normalizes rendered YAML so cosmetic differences are ignored between helm versions
+func normalizeYAML(s string) string {
+	lines := strings.Split(s, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimRight(line, " \t\r")
+		if trimmed == "" {
+			continue
+		}
+		out = append(out, trimmed)
+	}
+	return strings.Join(out, "\n")
 }
 
 // AssertHelmTemplate asserts that we can generate resources for the given chart and folder of values files
@@ -67,7 +79,7 @@ func AssertHelmTemplate(t *testing.T, chart string, outDir, valuesDir string) (s
 		args = append(args, "--debug")
 	}
 
-	files, err := ioutil.ReadDir(valuesDir)
+	files, err := os.ReadDir(valuesDir)
 	require.NoError(t, err, "could not read dir %s", valuesDir)
 	for _, f := range files {
 		name := f.Name()
@@ -96,7 +108,7 @@ func AssertHelmTemplate(t *testing.T, chart string, outDir, valuesDir string) (s
 
 	resultDir := filepath.Join(outDir, "results")
 
-	files, err = ioutil.ReadDir(templateDir)
+	files, err = os.ReadDir(templateDir)
 	for _, f := range files {
 		name := f.Name()
 		if strings.HasSuffix(name, ".yaml") {

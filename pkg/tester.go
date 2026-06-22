@@ -1,7 +1,7 @@
 package pkg
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -21,7 +21,7 @@ type UnitTester struct {
 
 // NewUnitTester creates a new unit tester of charts
 func NewUnitTester(t *testing.T) (*UnitTester, error) {
-	outDir, err := ioutil.TempDir("", "helm-test-")
+	outDir, err := os.MkdirTemp("", "helm-test-")
 	t.Logf("writing generated helm templates to %s", outDir)
 
 	if err != nil {
@@ -57,7 +57,7 @@ func AssertChartPathExists(t *testing.T, path string) (string, bool) {
 func (u *UnitTester) LoadTests(chart string, testDir string) ([]*TestCase, error) {
 	t := u.t
 	tests := []*TestCase{}
-	files, err := ioutil.ReadDir(testDir)
+	files, err := os.ReadDir(testDir)
 	require.NoError(t, err, "could not read dir %s", testDir)
 	for _, f := range files {
 		if f.IsDir() {
@@ -92,7 +92,7 @@ func (u *UnitTester) loadTestCaseConfig(testDir string, name string) (*TestCase,
 		return nil, errors.Wrapf(err, "failed to check for config file %s", configFile)
 	}
 	if exists {
-		data, err := ioutil.ReadFile(configFile)
+		data, err := os.ReadFile(configFile)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to load config file %s", configFile)
 		}
