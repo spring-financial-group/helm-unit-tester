@@ -51,7 +51,7 @@ func AssertHelmTemplate(t *testing.T, chart string, outDir, valuesDir string) (s
 	releaseName := "myrel"
 	ns := "jx"
 
-	helm2, err := checkIfHelm2(t)
+	helmVersion, err := getHelmMajorVersion(t)
 	if err != nil {
 		return "", nil, err
 	}
@@ -59,7 +59,7 @@ func AssertHelmTemplate(t *testing.T, chart string, outDir, valuesDir string) (s
 	requirementsFile := filepath.Join(chart, "requirements.yaml")
 	exists, err := FileExists(requirementsFile)
 	if err == nil && exists && os.Getenv("HELM_NO_DEPENDENCIES") != "true" {
-		// lets fetch dependencies
+		// let's fetch dependencies
 		t.Logf("building helm dependencies\n")
 		args := []string{"dependency", "build", chart}
 		cmd := exec.Command("helm", args...)
@@ -71,7 +71,7 @@ func AssertHelmTemplate(t *testing.T, chart string, outDir, valuesDir string) (s
 	}
 
 	args := []string{"template", releaseName, chart, "--output-dir", outDir, "--namespace", ns}
-	if helm2 {
+	if helmVersion == "v2" {
 		t.Logf("using helm 2.x binary/n")
 		args = []string{"template", "--name", releaseName, chart, "--output-dir", outDir}
 	}

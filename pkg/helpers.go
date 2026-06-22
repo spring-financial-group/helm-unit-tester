@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -173,31 +174,47 @@ func FileExists(path string) (bool, error) {
 	return true, errors.Wrapf(err, "failed to check if file exists %s", path)
 }
 
-func checkIfHelm2(t *testing.T) (bool, error) {
-	// `--client` was removed in helm 4
-	// `helm version --short` works for helm 3 and 4
+// helmVersionRegexp captures the major version (e.g. "v3") from helm's
+// `version --short` output, e.g. "v3" from "v3.21.2+g1259634".
+var helmVersionRegexp = regexp.MustCompile(`(v\d+)\.`)
+
+func parseHelmVersion(data []byte) (string, error) {
+	m := helmVersionRegexp.FindStringSubmatch(string(data))
+	if len(m) == 0 {
+		return "", errors.Errorf("failed to parse helm version from %s", string(data))
+	}
+	return m[1], nil
+}
+
+func getHelmMajorVersion(t *testing.T) (string, error) {
 	cmd := exec.Command("helm", "version", "--short")
 	data, err := cmd.CombinedOutput()
 	if err != nil {
 		// fallback to old check for helm 2
-		cmd = exec.Command("helm", "version", "--client", "--short")
-		data, err = cmd.CombinedOutput()
-	}
-	if data != nil {
-		t.Logf("helm version: %s\n", string(data))
-	}
-	if err != nil {
-		return false, err
-	}
-
-	fields := strings.Split(strings.TrimSpace(string(data)), " ")
-	if len(fields) > 1 {
-		v := strings.TrimPrefix(fields[1], "v")
-		if strings.HasPrefix(v, "2.") {
-			return true, nil
+		helmVersion, err := checkForHelm2(t)
+		if err != nil {
+			return "", err
 		}
+		return helmVersion, nil
 	}
-	return false, nil
+	helmVersion, err := parseHelmVersion(data)
+	if err != nil {
+		return "", err
+	}
+	return helmVersion, nil
+}
+
+func checkForHelm2(t *testing.T) (string, error) {
+	cmd := exec.Command("helm", "version", "--client", "--short")
+	data, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to check if helm 2 is available")
+	}
+	helmVersion, err := parseHelmVersion(data)
+	if err != nil {
+		return "", err
+	}
+	return helmVersion, nil
 }
 
 // credit https://gist.github.com/r0l1/92462b38df26839a3ca324697c8cba04
